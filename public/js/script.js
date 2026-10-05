@@ -292,6 +292,40 @@
     }
   }
 
+  /* ---------- valores sugeridos ---------- */
+  function setupChips(){
+    const input = document.getElementById('donor-value');
+    const chips = document.querySelectorAll('.chip');
+    if (!input || !chips.length) return;
+    function sync(){
+      const cur = parseCurrencyValue(input.value);
+      chips.forEach(ch => ch.setAttribute('aria-pressed', String(Number(ch.dataset.value) === cur)));
+    }
+    chips.forEach(ch => ch.addEventListener('click', () => {
+      input.value = Number(ch.dataset.value).toFixed(2).replace('.', ',');
+      sync();
+    }));
+    input.addEventListener('input', sync);
+  }
+
+  /* ---------- botão fixo "Quero contribuir" (celular) ---------- */
+  function setupStickyCta(){
+    const cta = document.getElementById('sticky-cta');
+    const hero = document.querySelector('.hero');
+    const pix = document.getElementById('pix');
+    if (!cta || !hero || !pix || !('IntersectionObserver' in window)) return;
+    const visible = new Set();
+    const update = () => cta.classList.toggle('is-away', visible.size > 0);
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => e.isIntersecting ? visible.add(e.target) : visible.delete(e.target));
+      update();
+    }, { threshold: 0.15 });
+    io.observe(hero);
+    io.observe(pix);
+    cta.hidden = false;
+    update();
+  }
+
   function setupCopyButton(){
     if (!els.copyBtn || !els.pixKey) return;
     els.pixKey.textContent = CONFIG.PIX_KEY;
@@ -313,6 +347,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     setupCopyButton();
     setupDonationForm();
+    setupChips();
+    setupStickyCta();
     loadCampaignData();
     // Atualiza os dados a cada 5 minutos, sem precisar recarregar a página
     setInterval(loadCampaignData, 5 * 60 * 1000);

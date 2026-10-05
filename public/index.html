@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Rumo a Barretos — Clube de Desbravadores Duarte Coelho</title>
 <meta name="description" content="Campanha de arrecadação para levar os desbravadores do Clube Duarte Coelho ao Campori da Divisão Sul-Americana, em Barretos/SP.">
+<meta name="theme-color" content="#0B1D33">
+<link rel="icon" type="image/png" href="assets/images/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,7 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
@@ -129,20 +131,39 @@
       </div>
 
       <div class="donation-card">
-        <form id="donation-form" class="donation-form">
-          <div class="form-row">
-            <input type="text" id="donor-name" name="donor-name" placeholder="Seu nome completo" required>
-            <input type="text" id="donor-value" name="donor-value" placeholder="Valor (R$)" required>
-            <button type="submit" class="donation-btn">Contribuir</button>
+        <form id="donation-form" class="donation-form" novalidate>
+          <h3 class="form-title">Faça sua contribuição</h3>
+
+          <div class="field">
+            <label for="donor-name">Seu nome</label>
+            <input type="text" id="donor-name" name="donor-name" placeholder="Como quer aparecer na lista"
+                   autocomplete="name" autocapitalize="words" enterkeyhint="next" maxlength="80" required>
           </div>
-          <div id="form-error" class="form-error"></div>
+
+          <div class="field">
+            <label for="donor-value">Valor da contribuição</label>
+            <div class="input-prefix">
+              <span aria-hidden="true">R$</span>
+              <input type="text" id="donor-value" name="donor-value" placeholder="0,00"
+                     inputmode="decimal" autocomplete="off" enterkeyhint="done" required>
+            </div>
+            <div class="chips" role="group" aria-label="Valores sugeridos">
+              <button type="button" class="chip" data-value="20">R$ 20</button>
+              <button type="button" class="chip" data-value="50">R$ 50</button>
+              <button type="button" class="chip" data-value="100">R$ 100</button>
+              <button type="button" class="chip" data-value="200">R$ 200</button>
+            </div>
+          </div>
+
+          <div id="form-error" class="form-error" role="alert" aria-live="assertive"></div>
+          <button type="submit" class="donation-btn">Contribuir</button>
         </form>
 
         <div class="donation-steps">
-          <div><b>1.</b> Informe seu nome e o valor que deseja contribuir.</div>
-          <div><b>2.</b> Clique em "Contribuir" para ir ao 7me e completar o pagamento.</div>
-          <div><b>3.</b> Seu nome entra automaticamente na lista de padrinhos abaixo.</div>
-          <div><b>4.</b> Obrigado por fazer parte dessa jornada!</div>
+          <div><b>1</b> Informe seu nome e o valor que deseja contribuir.</div>
+          <div><b>2</b> Toque em "Contribuir": seu nome entra na lista de padrinhos.</div>
+          <div><b>3</b> Siga para o 7me e conclua o pagamento com o valor escolhido.</div>
+          <div><b>4</b> Obrigado por fazer parte dessa jornada!</div>
         </div>
       </div>
 
@@ -198,8 +219,10 @@
   </div>
 </footer>
 
+<a class="sticky-cta" id="sticky-cta" href="#pix" hidden>Quero contribuir</a>
+
 <script src="js/firebase-config.js?v=4"></script>
-<script src="js/script.js?v=4"></script>
+<script src="js/script.js?v=5"></script>
 
 </body>
 </html>
