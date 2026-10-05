@@ -682,3 +682,22 @@
     .donation-modal-content{ padding:20px; }
   }
   td.table-status{ white-space:normal; text-align:left; }
+
+  /* Prazo da campanha */
+  .deadline{
+    display:inline-flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:6px 10px;
+    align-self:flex-start;
+    margin-top:12px;
+    padding:8px 14px;
+    border-radius:var(--radius-m);
+    background:var(--cream);
+    border:1px solid var(--line-soft);
+    font-size:0.9rem;
+    color:#3d3d37;
+  }
+  .deadline[hidden]{ display:none; }
+  .deadline-count{ font-family:var(--font-display); font-size:1.15rem; color:var(--red-deep); }
+  .deadline.is-urgent{ background:#fdecea; border-color:#f3b8b3; }
