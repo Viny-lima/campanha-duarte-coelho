@@ -626,24 +626,25 @@
   /* Botão fixo "Quero contribuir" (somente celular/tablet) */
   .sticky-cta{
     position:fixed;
-    left:16px; right:16px;
-    bottom:calc(12px + env(safe-area-inset-bottom));
+    left:50%;
+    bottom:calc(10px + env(safe-area-inset-bottom));
     z-index:900;
     display:flex; align-items:center; justify-content:center;
-    min-height:54px;
-    border-radius:var(--radius-m);
+    min-height:44px;
+    padding:0 22px;
+    border-radius:999px;
     background:var(--gold);
     color:var(--navy-deep);
     font-weight:700;
-    font-size:1.05rem;
+    font-size:0.95rem;
+    white-space:nowrap;
     text-decoration:none;
-    box-shadow:0 10px 28px rgba(0,0,0,0.4);
-    transform:translateY(0);
+    box-shadow:0 6px 18px rgba(0,0,0,0.35);
+    transform:translateX(-50%);
     transition:transform .25s ease, opacity .25s ease;
   }
   .sticky-cta[hidden]{ display:none; }
-  .sticky-cta.is-away{ transform:translateY(140%); opacity:0; pointer-events:none; }
-  body{ padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+  .sticky-cta.is-away{ transform:translate(-50%,140%); opacity:0; pointer-events:none; }
 
   @media (max-width:639px){
     section{ padding:44px 0; }
@@ -670,7 +671,6 @@
   }
   @media (min-width:900px){
     .sticky-cta{ display:none !important; }
-    body{ padding-bottom:0; }
     .pix-grid > div:first-child{ position:sticky; top:32px; }
     .donation-card{ padding:32px; }
   }

@@ -313,7 +313,8 @@
     const cta = document.getElementById('sticky-cta');
     const hero = document.querySelector('.hero');
     const pix = document.getElementById('pix');
-    if (!cta || !hero || !pix || !('IntersectionObserver' in window)) return;
+    const footer = document.querySelector('footer');
+    if (!cta || !hero || !pix || !footer || !('IntersectionObserver' in window)) return;
     const visible = new Set();
     const update = () => cta.classList.toggle('is-away', visible.size > 0);
     const io = new IntersectionObserver(entries => {
@@ -322,6 +323,7 @@
     }, { threshold: 0.15 });
     io.observe(hero);
     io.observe(pix);
+    io.observe(footer);
     cta.hidden = false;
     update();
   }
