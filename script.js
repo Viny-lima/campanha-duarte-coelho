@@ -136,7 +136,7 @@
         timestamp: new Date().getTime()
       };
 
-      await database.ref('pending').push(donationData);
+      await database.ref('donations').push(donationData);
       return { success: true };
     } catch (err) {
       console.error('Erro ao salvar doação:', err);

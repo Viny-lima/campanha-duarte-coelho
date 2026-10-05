@@ -2,26 +2,11 @@
   "rules": {
     ".read": false,
     ".write": false,
-
-    "pending": {
-      ".read": "auth != null && auth.token.email == 'TROCAR_PELO_EMAIL_DO_CLUBE@gmail.com' && auth.token.email_verified == true",
-      ".indexOn": ["timestamp"],
-      "$id": {
-        ".write": "(auth != null && !data.exists() && newData.exists()) || (auth != null && auth.token.email == 'TROCAR_PELO_EMAIL_DO_CLUBE@gmail.com' && auth.token.email_verified == true)",
-        ".validate": "newData.hasChildren(['name','value','date','timestamp'])",
-        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
-        "value": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000" },
-        "date": { ".validate": "newData.isString() && newData.val().length <= 10" },
-        "timestamp": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
-        "$other": { ".validate": false }
-      }
-    },
-
     "donations": {
       ".read": true,
       ".indexOn": ["timestamp"],
       "$id": {
-        ".write": "auth != null && auth.token.email == 'TROCAR_PELO_EMAIL_DO_CLUBE@gmail.com' && auth.token.email_verified == true",
+        ".write": "auth != null && !data.exists() && newData.exists()",
         ".validate": "newData.hasChildren(['name','value','date','timestamp'])",
         "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
         "value": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000" },
