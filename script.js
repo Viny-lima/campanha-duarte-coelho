@@ -4,18 +4,7 @@
   /* =========================================================
      CONFIGURAÇÃO FIREBASE
   ========================================================== */
-  const firebaseConfig = {
-    apiKey: "AIzaSyCgbivlizIsbfIsexUsn2neb3XsAnjhTAE",
-    authDomain: "campanha-duarte-coelho.firebaseapp.com",
-    databaseURL: "https://campanha-duarte-coelho-default-rtdb.firebaseio.com",
-    projectId: "campanha-duarte-coelho",
-    storageBucket: "campanha-duarte-coelho.firebasestorage.app",
-    messagingSenderId: "949439292528",
-    appId: "1:949439292528:web:593c180939293e022f80b5",
-    measurementId: "G-5QS719G65Z"
-  };
-
-  firebase.initializeApp(firebaseConfig);
+  firebase.initializeApp(window.FIREBASE_CONFIG);
   const database = firebase.database();
   const auth = firebase.auth();
 
@@ -147,11 +136,11 @@
         timestamp: new Date().getTime()
       };
 
-      await database.ref('donations').push(donationData);
+      await database.ref('pending').push(donationData);
       return { success: true };
     } catch (err) {
       console.error('Erro ao salvar doação:', err);
-      return { success: true };
+      return { success: false };
     }
   }
 
@@ -185,7 +174,12 @@
       }
       form.querySelector('[type="submit"]').disabled = true;
       lastSubmitTime = now;
-      await submitDonation(name, value);
+      const result = await submitDonation(name, value);
+      if (!result.success) {
+        errorDiv.textContent = 'Não foi possível registrar agora. Tente novamente.';
+        form.querySelector('[type="submit"]').disabled = false;
+        return;
+      }
       modal.style.display = 'flex';
       modalDonorName.textContent = name;
       setTimeout(() => {
