@@ -17,17 +17,13 @@ Este é um **projeto voluntário**, desenvolvido sem fins lucrativos para apoiar
 .
 ├── public/                  # Tudo que é publicado no Firebase Hosting
 │   ├── index.html           # Página principal da campanha
-│   ├── css/
-│   │   └── style.css        # Estilos do site
-│   ├── js/
-│   │   ├── firebase-config.js  # Config pública do Firebase (único arquivo a trocar ao migrar de projeto)
-│   │   └── script.js        # Lógica da página e integração com o Firebase
-│   └── assets/
-│       └── images/          # Imagens do site
-├── docs/
-│   └── FIREBASE_HOSTING_SETUP.md  # Guia de deploy no Firebase Hosting
+│   ├── css/style.css        # Estilos do site
+│   └── js/
+│       ├── firebase-config.js  # Config pública do Firebase (único arquivo a trocar ao migrar de projeto)
+│       └── script.js        # Lógica da página e integração com o Firebase
 ├── database.rules.json      # Regras de segurança do Realtime Database
 ├── firebase.json            # Configuração de deploy e cabeçalhos de segurança
+├── .firebaserc              # Projeto Firebase padrão
 └── README.md
 ```
 
@@ -37,6 +33,14 @@ Basta abrir o `public/index.html` no navegador, ou servir a pasta com qualquer s
 
 ```bash
 npx serve public
+```
+
+## Deploy
+
+```bash
+npm i -g firebase-tools
+firebase login
+firebase deploy        # publica o site e as regras do banco
 ```
 
 ## Contribuições
