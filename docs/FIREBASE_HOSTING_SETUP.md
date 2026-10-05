@@ -51,7 +51,7 @@ firebase init hosting
 |----------|----------|
 | Are you ready to proceed? | `Y` (Yes) |
 | Project | `campanha-duarte-coelho` |
-| Public directory | `.` (ponto — diretório atual) |
+| Public directory | `public` |
 | Configure as a single-page app? | `n` (no) |
 | Overwrite public/index.html? | `n` (no) |
 

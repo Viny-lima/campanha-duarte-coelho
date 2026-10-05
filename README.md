@@ -13,22 +13,30 @@ Este é um **projeto voluntário**, desenvolvido sem fins lucrativos para apoiar
 
 ## Estrutura
 
-| Arquivo | Descrição |
-| --- | --- |
-| `index.html` | Página principal da campanha |
-| `style.css` | Estilos do site |
-| `script.js` | Lógica da página e integração com o Firebase |
-| `firebase-config.js` | Configuração pública do Firebase (único arquivo a trocar ao migrar de projeto) |
-| `database.rules.json` | Regras de segurança do Realtime Database |
-| `firebase.json` | Configuração de deploy e cabeçalhos de segurança |
-| `FIREBASE_HOSTING_SETUP.md` | Guia de deploy no Firebase Hosting |
+```
+.
+├── public/                  # Tudo que é publicado no Firebase Hosting
+│   ├── index.html           # Página principal da campanha
+│   ├── css/
+│   │   └── style.css        # Estilos do site
+│   ├── js/
+│   │   ├── firebase-config.js  # Config pública do Firebase (único arquivo a trocar ao migrar de projeto)
+│   │   └── script.js        # Lógica da página e integração com o Firebase
+│   └── assets/
+│       └── images/          # Imagens do site
+├── docs/
+│   └── FIREBASE_HOSTING_SETUP.md  # Guia de deploy no Firebase Hosting
+├── database.rules.json      # Regras de segurança do Realtime Database
+├── firebase.json            # Configuração de deploy e cabeçalhos de segurança
+└── README.md
+```
 
 ## Como rodar localmente
 
-Basta abrir o `index.html` no navegador, ou servir a pasta com qualquer servidor estático:
+Basta abrir o `public/index.html` no navegador, ou servir a pasta com qualquer servidor estático:
 
 ```bash
-npx serve .
+npx serve public
 ```
 
 ## Contribuições
