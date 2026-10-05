@@ -270,6 +270,42 @@
     color:#7a7a70;
   }
 
+  /* ===================== A TURMA / APELO ===================== */
+  .turma{
+    background:var(--cream);
+  }
+  .turma-grid{
+    display:grid;
+    gap:28px;
+    align-items:center;
+  }
+  .turma-photo{
+    margin:0;
+    border-radius:var(--radius-l);
+    overflow:hidden;
+    box-shadow:0 12px 32px rgba(11,29,51,0.18);
+    background:var(--navy);
+  }
+  .turma-photo img{
+    width:100%;
+    height:auto;
+    aspect-ratio:4 / 3;
+    object-fit:cover;
+  }
+  .turma-photo figcaption{
+    padding:10px 16px;
+    font-size:0.85rem;
+    color:rgba(255,255,255,0.85);
+    background:var(--navy);
+  }
+  .turma .eyebrow{ color:var(--red-deep); }
+  .turma-text h2{ font-size:1.7rem; color:var(--navy); margin:8px 0 14px; }
+  .turma-text p{ color:#3d3d37; line-height:1.65; margin:0 0 14px; max-width:60ch; }
+  .turma-text .btn{ margin-top:6px; }
+  @media (min-width:900px){
+    .turma-grid{ grid-template-columns:1.1fr 1fr; gap:48px; }
+  }
+
   /* ===================== PIX ===================== */
   .pix{
     background:var(--navy-deep);

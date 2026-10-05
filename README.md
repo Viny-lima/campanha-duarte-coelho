@@ -18,9 +18,10 @@ Este é um **projeto voluntário**, desenvolvido sem fins lucrativos para apoiar
 ├── public/                  # Tudo que é publicado no Firebase Hosting
 │   ├── index.html           # Página principal da campanha
 │   ├── css/style.css        # Estilos do site
-│   └── js/
-│       ├── firebase-config.js  # Config pública do Firebase (único arquivo a trocar ao migrar de projeto)
-│       └── script.js        # Lógica da página e integração com o Firebase
+│   ├── js/
+│   │   ├── firebase-config.js  # Config pública do Firebase (único arquivo a trocar ao migrar de projeto)
+│   │   └── script.js        # Lógica da página e integração com o Firebase
+│   └── assets/images/       # Imagens do site (foto da turma)
 ├── database.rules.json      # Regras de segurança do Realtime Database
 ├── firebase.json            # Configuração de deploy e cabeçalhos de segurança
 ├── .firebaserc              # Projeto Firebase padrão
