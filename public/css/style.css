@@ -571,6 +571,8 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 16px;
+    overflow-y: auto;
   }
 
   .donation-modal-content {
@@ -579,6 +581,7 @@
     padding: 48px 32px;
     text-align: center;
     max-width: 400px;
+    width: 100%;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   }
 
@@ -595,6 +598,14 @@
     margin-bottom: 12px;
   }
 
+  .modal-amount{ background:var(--cream); border-radius:var(--radius-m); padding:14px; margin:14px 0 8px; display:flex; flex-direction:column; gap:2px; }
+  .modal-amount span{ font-size:0.8rem; color:#5b5b55; }
+  .donation-modal-content .modal-amount strong{ font-family:var(--font-display); font-size:2rem; color:var(--navy); }
+  .donation-modal-content .modal-amount small{ font-size:0.8rem; color:#1b7f3b; min-height:1em; }
+  .modal-hint{ font-size:0.9rem; }
+  @media (max-width:600px){ .donation-modal-content{ padding:32px 20px; } }
+  .modal-go{ width:100%; margin-top:6px; }
+  .modal-copy{ margin-top:10px; background:none; border:0; color:var(--navy); text-decoration:underline; font:inherit; font-size:0.9rem; cursor:pointer; }
   .donation-modal-content strong {
     color: #e3a72e;
   }
