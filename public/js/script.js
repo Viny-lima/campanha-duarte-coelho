@@ -156,6 +156,11 @@
     }
   }
 
+  function setText(id, text){
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
   function setupDonationForm(){
     const form = document.getElementById('donation-form');
     const errorDiv = document.getElementById('form-error');
@@ -183,30 +188,45 @@
       }
       const amount = parseCurrencyValue(value);
       const amountText = amount.toFixed(2).replace('.', ',');
-      form.querySelector('[type="submit"]').disabled = true;
       lastSubmitTime = now;
+      const submitBtn = form.querySelector('[type="submit"]');
+      submitBtn.disabled = true;
+      try {
+        // Copia o valor ainda dentro do gesto do usuário; nunca deve travar o envio
+        const copied = await Promise.race([
+          copyText(amountText),
+          new Promise(resolve => setTimeout(() => resolve(false), 1500))
+        ]);
 
-      // Copia o valor ainda dentro do gesto do usuário (o navegador só permite assim)
-      const copied = await copyText(amountText);
+        const result = await submitDonation(name, value);
+        if (!result.success) {
+          errorDiv.textContent = 'Não foi possível registrar agora. Tente novamente.';
+          submitBtn.disabled = false;
+          return;
+        }
 
-      const result = await submitDonation(name, value);
-      if (!result.success) {
-        errorDiv.textContent = 'Não foi possível registrar agora. Tente novamente.';
-        form.querySelector('[type="submit"]').disabled = false;
-        return;
+        if (modalDonorName) modalDonorName.textContent = name;
+        setText('modal-amount-value', formatBRL(amount));
+        setText('modal-copy-status', copied ? 'Valor copiado: ' + amountText : '');
+        const goBtn = document.getElementById('modal-go');
+        const copyBtn = document.getElementById('modal-copy');
+        if (copyBtn) copyBtn.onclick = async () => {
+          const ok = await copyText(amountText);
+          setText('modal-copy-status', ok ? 'Valor copiado: ' + amountText : 'Anote o valor: ' + amountText);
+        };
+        modal.style.display = 'flex';
+        if (goBtn) {
+          goBtn.href = CONFIG.REDIRECT_URL;
+          goBtn.focus();
+        } else {
+          // Segurança: se a página estiver com HTML antigo, segue o fluxo anterior
+          setTimeout(() => { window.location.href = CONFIG.REDIRECT_URL; }, 5000);
+        }
+      } catch (err) {
+        console.error('Erro no envio:', err);
+        errorDiv.textContent = 'Algo deu errado. Tente novamente.';
+        submitBtn.disabled = false;
       }
-      modalDonorName.textContent = name;
-      document.getElementById('modal-amount-value').textContent = formatBRL(amount);
-      document.getElementById('modal-copy-status').textContent = copied ? 'Valor copiado: ' + amountText : '';
-      const goBtn = document.getElementById('modal-go');
-      goBtn.href = CONFIG.REDIRECT_URL;
-      const copyBtn = document.getElementById('modal-copy');
-      copyBtn.onclick = async () => {
-        const ok = await copyText(amountText);
-        document.getElementById('modal-copy-status').textContent = ok ? 'Valor copiado: ' + amountText : 'Anote o valor: ' + amountText;
-      };
-      modal.style.display = 'flex';
-      goBtn.focus();
     });
   }
 

@@ -36,20 +36,38 @@
         ]
       },
       {
-        "source": "**/*.@(html|css|js)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "public, max-age=300, must-revalidate"
-          }
-        ]
-      },
-      {
         "source": "**/*.@(jpg|jpeg|png|webp|svg)",
         "headers": [
           {
             "key": "Cache-Control",
             "value": "public, max-age=86400"
+          }
+        ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(css|js)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300, must-revalidate"
           }
         ]
       }
