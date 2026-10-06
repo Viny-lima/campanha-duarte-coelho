@@ -16,8 +16,7 @@
   const CONFIG = {
     GOAL: 55000.00,
     PIX_KEY: "00.000.000/0001-00",
-    REDIRECT_URL: "https://7me.app/71/p19w9a",
-    DEADLINE: new Date(2027, 0, 1) // prazo da arrecadação: 1º de janeiro de 2027
+    REDIRECT_URL: "https://7me.app/71/p19w9a"
   };
 
   const els = {
@@ -329,28 +328,6 @@
     update();
   }
 
-  /* ---------- contagem regressiva do prazo ---------- */
-  function updateDeadline(){
-    const box = document.getElementById('deadline');
-    const count = document.getElementById('deadline-count');
-    const text = document.getElementById('deadline-text');
-    if (!box || !count || !text) return;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const days = Math.round((CONFIG.DEADLINE - today) / 86400000);
-    if (days > 1){
-      count.textContent = 'Faltam ' + days + ' dias';
-      text.textContent = 'até 1º de janeiro de ' + CONFIG.DEADLINE.getFullYear();
-    } else if (days === 1){
-      count.textContent = 'Falta 1 dia';
-      text.textContent = 'para o fim. Contribua hoje!';
-    } else {
-      count.textContent = 'Arrecadação encerrada';
-      text.textContent = 'Obrigado a todos que ajudaram!';
-    }
-    box.classList.toggle('is-urgent', days <= 7);
-    box.hidden = false;
-  }
-
   function setupCopyButton(){
     if (!els.copyBtn || !els.pixKey) return;
     els.pixKey.textContent = CONFIG.PIX_KEY;
@@ -373,8 +350,6 @@
     setupCopyButton();
     setupDonationForm();
     setupChips();
-    updateDeadline();
-    setInterval(updateDeadline, 60 * 60 * 1000);
     setupStickyCta();
     loadCampaignData();
     // Atualiza os dados a cada 5 minutos, sem precisar recarregar a página
