@@ -1,318 +1,460 @@
-(function(){
+(function () {
   "use strict";
-
-  /* =========================================================
-     CONFIGURAÇÃO FIREBASE
-  ========================================================== */
-  firebase.initializeApp(window.FIREBASE_CONFIG);
-  const database = firebase.database();
-  const auth = firebase.auth();
-
-  // Autenticação Anônima
-  auth.signInAnonymously().catch(err => {
-    console.error('Erro ao autenticar:', err);
-  });
 
   const CONFIG = {
     GOAL: 55000.00,
-    PIX_KEY: "00.000.000/0001-00",
-    REDIRECT_URL: "https://7me.app/71/p19w9a"
+    REDIRECT_URL: "https://7me.app/71/p19w9a",
+    MIN_VALUE: 1,
+    MAX_VALUE: 10000,
+    NAME_MAX: 80,
+    REFRESH_MS: 5 * 60 * 1000,
+    LOAD_TIMEOUT_MS: 10000,
+    AUTH_TIMEOUT_MS: 8000,
+    WRITE_TIMEOUT_MS: 8000
   };
 
+  /* =========================================================
+     FIREBASE (protegido: se o SDK não carregar, o resto do site continua)
+  ========================================================== */
+  let db = null;
+  let auth = null;
+  let authPromise = Promise.resolve(null);
+  try {
+    firebase.initializeApp(window.FIREBASE_CONFIG);
+    db = firebase.database();
+    auth = firebase.auth();
+    authPromise = auth.signInAnonymously().catch(err => {
+      console.error('Erro ao autenticar:', err);
+      return null;
+    });
+  } catch (err) {
+    console.error('Firebase indisponível:', err);
+  }
+
+  /* =========================================================
+     UTILITÁRIOS
+  ========================================================== */
+  const $ = id => document.getElementById(id);
+  const currencyFmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatBRL = value => currencyFmt.format(value || 0);
+  const round2 = n => Math.round(n * 100) / 100;
+  const prefersReducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function withTimeout(promise, ms) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timeout')), ms);
+      promise.then(
+        value => { clearTimeout(timer); resolve(value); },
+        error => { clearTimeout(timer); reject(error); }
+      );
+    });
+  }
+
+  /* =========================================================
+     VALIDAÇÃO: NOME E VALOR
+  ========================================================== */
+  // Nome: só letras (com acentos), espaço, apóstrofo, ponto e hífen
+  const NAME_FORBIDDEN = /[^\p{L}\p{M}'’.\- ]/gu;
+  const NAME_FORMAT = /^\p{L}[\p{L}\p{M}'’.\- ]*$/u;
+
+  function sanitizeName(raw) {
+    return raw.replace(NAME_FORBIDDEN, '').replace(/ {2,}/g, ' ').replace(/^[ .\-'’]+/, '');
+  }
+
+  function validateName(raw) {
+    const name = String(raw || '').replace(/\s+/g, ' ').trim();
+    if (!name) return { ok: false, msg: 'Informe seu nome.' };
+    const letters = (name.match(/\p{L}/gu) || []).length;
+    if (!NAME_FORMAT.test(name) || letters < 2) return { ok: false, msg: 'Digite seu nome usando apenas letras (mínimo 2).' };
+    if (name.length > CONFIG.NAME_MAX) return { ok: false, msg: 'O nome pode ter no máximo ' + CONFIG.NAME_MAX + ' caracteres.' };
+    return { ok: true, name };
+  }
+
+  // Valor: só dígitos, ponto e vírgula
+  const sanitizeValue = raw => raw.replace(/[^\d.,]/g, '');
+
+  /**
+   * Formatos aceitos (pt-BR):  50 · 50,5 · 50,50 · 50.50 · 1.250 · 1.250,50
+   * "1.250" é milhar (R$ 1.250); "1.25" é decimal (R$ 1,25). Qualquer outro formato é inválido.
+   */
+  function parseAmount(raw) {
+    const s = String(raw || '').trim();
+    let m;
+    if (/^\d+$/.test(s)) return Number(s);
+    if ((m = s.match(/^(\d{1,3}(?:\.\d{3})+)(?:,(\d{1,2}))?$/))) return Number(m[1].replace(/\./g, '') + '.' + (m[2] || '0'));
+    if ((m = s.match(/^(\d+),(\d{1,2})$/))) return Number(m[1] + '.' + m[2]);
+    if ((m = s.match(/^(\d+)\.(\d{1,2})$/))) return Number(m[1] + '.' + m[2]);
+    return NaN;
+  }
+
+  function validateAmount(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return { ok: false, msg: 'Informe o valor.' };
+    const n = parseAmount(s);
+    if (isNaN(n)) return { ok: false, msg: 'Valor inválido. Use o formato 50 ou 50,00.' };
+    const value = round2(n);
+    if (value < CONFIG.MIN_VALUE) return { ok: false, msg: 'O valor mínimo é ' + formatBRL(CONFIG.MIN_VALUE) + '.' };
+    if (value > CONFIG.MAX_VALUE) return { ok: false, msg: 'O valor máximo é ' + formatBRL(CONFIG.MAX_VALUE) + '.' };
+    return { ok: true, value };
+  }
+
+  /* =========================================================
+     PAINEL DE PROGRESSO
+  ========================================================== */
   const els = {
-    raised:     document.getElementById('stat-raised'),
-    goal:       document.getElementById('stat-goal'),
-    remaining:  document.getElementById('stat-remaining'),
-    fill:       document.getElementById('progress-fill'),
-    percent:    document.getElementById('progress-percent'),
-    status:     document.getElementById('dash-status'),
-    tbody:      document.getElementById('donors-body'),
-    pixKey:     document.getElementById('pix-key'),
-    copyBtn:    document.getElementById('copy-pix')
+    raised: $('stat-raised'), goal: $('stat-goal'), remaining: $('stat-remaining'),
+    fill: $('progress-fill'), track: $('progress-track'), percent: $('progress-percent'),
+    status: $('dash-status'), retry: $('retry-load'), tbody: $('donors-body')
   };
 
-  const currencyFmt = new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' });
+  let renderedTotal = 0;
+  let animationId = 0;
+  let loadedOnce = false;
+  let loadTimer = null;
 
-  function formatBRL(value){
-    return currencyFmt.format(value || 0);
-  }
-
-  /* ---------- parser de valores vindos da planilha (ex: "R$ 1.250,00") ---------- */
-  function parseCurrencyValue(raw){
-    if (raw === undefined || raw === null) return NaN;
-    let s = String(raw).trim();
-    s = s.replace(/R\$\s?/gi, '').trim();
-    if (s === '') return NaN;
-    // remove separador de milhar "." e troca decimal "," por "."
-    if (s.indexOf(',') > -1) {
-      s = s.replace(/\./g, '').replace(',', '.');
-    }
-    const n = parseFloat(s);
-    return isNaN(n) ? NaN : n;
-  }
-
-  /* ---------- parser de CSV simples, com suporte a aspas ---------- */
-  function parseCSV(text){
-    const rows = [];
-    let row = [];
-    let field = '';
-    let inQuotes = false;
-
-    for (let i = 0; i < text.length; i++){
-      const char = text[i];
-      const next = text[i+1];
-
-      if (inQuotes){
-        if (char === '"' && next === '"'){ field += '"'; i++; }
-        else if (char === '"'){ inQuotes = false; }
-        else { field += char; }
-      } else {
-        if (char === '"'){ inQuotes = true; }
-        else if (char === ','){ row.push(field); field = ''; }
-        else if (char === '\r'){ /* ignora */ }
-        else if (char === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
-        else { field += char; }
-      }
-    }
-    if (field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
-    return rows.filter(r => r.length > 1 || (r.length === 1 && r[0].trim() !== ''));
-  }
-
-  /* ---------- tenta converter "DD/MM/AAAA" em Date para ordenar ---------- */
-  function parseDateBR(raw){
-    if (!raw) return new Date(0);
-    const parts = raw.trim().split('/');
-    if (parts.length === 3){
-      const [d, m, y] = parts.map(p => parseInt(p, 10));
-      const year = y < 100 ? 2000 + y : y;
-      const dt = new Date(year, (m || 1) - 1, d || 1);
-      if (!isNaN(dt.getTime())) return dt;
-    }
-    const fallback = new Date(raw);
-    return isNaN(fallback.getTime()) ? new Date(0) : fallback;
-  }
-
-  function animateNumber(el, from, to, duration){
+  function animateNumber(el, from, to, duration) {
+    const id = ++animationId;
+    if (prefersReducedMotion() || from === to) { el.textContent = formatBRL(to); return; }
     const start = performance.now();
-    function step(now){
+    function step(now) {
+      if (id !== animationId) return;
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
-      const value = from + (to - from) * eased;
-      el.textContent = formatBRL(value);
+      el.textContent = formatBRL(from + (to - from) * eased);
       if (t < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
   }
 
-  function updateDashboard(total){
+  function percentText(percent) {
+    const t = percent.toFixed(1).replace('.', ',');
+    return (t.endsWith(',0') ? t.slice(0, -2) : t) + '%';
+  }
+
+  function setStatus(text, isError) {
+    els.status.textContent = text;
+    els.status.classList.toggle('is-error', !!isError);
+    els.retry.hidden = !isError;
+  }
+
+  function updateDashboard(total) {
     const goal = CONFIG.GOAL;
     const remaining = Math.max(goal - total, 0);
     const percent = Math.min(100, (total / goal) * 100);
 
-    animateNumber(els.raised, 0, total, 900);
+    animateNumber(els.raised, renderedTotal, total, 900);
+    renderedTotal = total;
     els.goal.textContent = formatBRL(goal);
     els.remaining.textContent = formatBRL(remaining);
+    els.fill.style.width = percent.toFixed(1) + '%';
+    els.percent.textContent = percentText(percent);
+    els.track.setAttribute('aria-valuenow', String(Math.round(percent)));
 
-    requestAnimationFrame(() => {
-      els.fill.style.width = percent.toFixed(1) + '%';
-    });
-    els.percent.textContent = percent.toFixed(1).replace('.0','') + '%';
-
-    if (total >= goal){
-      els.status.textContent = 'Meta alcançada! Obrigado a cada doador. 🎉';
-    } else {
-      els.status.textContent = 'Dados atualizados a partir da planilha da campanha.';
-    }
+    setStatus(total >= goal
+      ? 'Meta alcançada! Obrigado a cada padrinho. 🎉'
+      : 'Atualizado automaticamente a cada 5 minutos.', false);
   }
 
-
-  /* ---------- Envio do formulário de doação (Firebase) ---------- */
-  async function submitDonation(name, value) {
-    try {
-      const donationData = {
-        name: name.trim(),
-        value: parseCurrencyValue(value),
-        date: new Date().toLocaleDateString('pt-BR'),
-        timestamp: new Date().getTime()
-      };
-
-      await database.ref('donations').push(donationData);
-      return { success: true };
-    } catch (err) {
-      console.error('Erro ao salvar doação:', err);
-      return { success: false };
-    }
+  function emptyRow(message) {
+    els.tbody.textContent = '';
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 3;
+    td.className = 'table-status';
+    td.textContent = message;
+    tr.appendChild(td);
+    els.tbody.appendChild(tr);
   }
 
-  let lastSubmitTime = 0;
-  const SUBMIT_COOLDOWN = 5000;
-
-  async function copyText(text){
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (e){
-      return false;
-    }
-  }
-
-  function setText(id, text){
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-  }
-
-  function setupDonationForm(){
-    const form = document.getElementById('donation-form');
-    const errorDiv = document.getElementById('form-error');
-    const modal = document.getElementById('donation-modal');
-    const modalDonorName = document.getElementById('modal-donor-name');
-    if (!form) return;
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      errorDiv.textContent = '';
-      const now = Date.now();
-      if (now - lastSubmitTime < SUBMIT_COOLDOWN) {
-        const waitTime = Math.ceil((SUBMIT_COOLDOWN - (now - lastSubmitTime)) / 1000);
-        errorDiv.textContent = `Aguarde ${waitTime}s antes de enviar novamente`;
-        return;
-      }
-      const name = document.getElementById('donor-name').value.trim();
-      const value = document.getElementById('donor-value').value.trim();
-      if (!name || !value) {
-        errorDiv.textContent = 'Preencha nome e valor';
-        return;
-      }
-      if (isNaN(parseCurrencyValue(value))) {
-        errorDiv.textContent = 'Valor inválido';
-        return;
-      }
-      const amount = parseCurrencyValue(value);
-      const amountText = amount.toFixed(2).replace('.', ',');
-      lastSubmitTime = now;
-      const submitBtn = form.querySelector('[type="submit"]');
-      submitBtn.disabled = true;
-      try {
-        // Copia o valor ainda dentro do gesto do usuário; nunca deve travar o envio
-        const copied = await Promise.race([
-          copyText(amountText),
-          new Promise(resolve => setTimeout(() => resolve(false), 1500))
-        ]);
-
-        const result = await submitDonation(name, value);
-        if (!result.success) {
-          errorDiv.textContent = 'Não foi possível registrar agora. Tente novamente.';
-          submitBtn.disabled = false;
-          return;
-        }
-
-        if (modalDonorName) modalDonorName.textContent = name;
-        setText('modal-amount-value', formatBRL(amount));
-        setText('modal-copy-status', copied ? 'Valor copiado: ' + amountText : '');
-        const goBtn = document.getElementById('modal-go');
-        const copyBtn = document.getElementById('modal-copy');
-        if (copyBtn) copyBtn.onclick = async () => {
-          const ok = await copyText(amountText);
-          setText('modal-copy-status', ok ? 'Valor copiado: ' + amountText : 'Anote o valor: ' + amountText);
-        };
-        modal.style.display = 'flex';
-        if (goBtn) {
-          goBtn.href = CONFIG.REDIRECT_URL;
-          goBtn.focus();
-        } else {
-          // Segurança: se a página estiver com HTML antigo, segue o fluxo anterior
-          setTimeout(() => { window.location.href = CONFIG.REDIRECT_URL; }, 5000);
-        }
-      } catch (err) {
-        console.error('Erro no envio:', err);
-        errorDiv.textContent = 'Algo deu errado. Tente novamente.';
-        submitBtn.disabled = false;
-      }
-    });
-  }
-
-
-  function renderDonors(donations){
-    if (donations.length === 0){
-      els.tbody.innerHTML = '<tr><td colspan="3" class="table-status">Ainda não há doações registradas. Seja o primeiro a contribuir!</td></tr>';
+  function renderDonors(list) {
+    if (!list.length) {
+      emptyRow('Ainda não há padrinhos registrados. Seja o primeiro a contribuir!');
       return;
     }
-
-    const sorted = donations.slice().sort((a, b) => b.dateObj - a.dateObj);
-
-    els.tbody.innerHTML = sorted.map(d => `
-      <tr>
-        <td>${escapeHTML(d.date)}</td>
-        <td>${escapeHTML(d.name)}</td>
-        <td class="value-col">${formatBRL(d.value)}</td>
-      </tr>
-    `).join('');
-  }
-
-  function escapeHTML(str){
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
-
-  function loadCampaignData(){
-    try {
-      database.ref('donations').orderByChild('timestamp').once('value', snapshot => {
-        const data = snapshot.val();
-
-        if (!data) {
-          els.tbody.innerHTML = '<tr><td colspan="3" class="table-status">Ainda não há doações registradas. Seja o primeiro a contribuir!</td></tr>';
-          updateDashboard(0);
-          return;
-        }
-
-        const donations = Object.values(data)
-          .filter(d => d.name && !isNaN(d.value) && d.value > 0)
-          .map(d => ({
-            date: d.date || new Date().toLocaleDateString('pt-BR'),
-            name: d.name,
-            value: d.value,
-            dateObj: parseDateBR(d.date || '')
-          }))
-          .sort((a, b) => b.dateObj - a.dateObj);
-
-        const total = donations.reduce((sum, d) => sum + d.value, 0);
-
-        renderDonors(donations);
-        updateDashboard(total);
-      }, err => {
-        console.error('Erro ao carregar dados:', err);
-        els.status.textContent = 'Não foi possível carregar os dados agora. Tente novamente em instantes.';
-        els.tbody.innerHTML = '<tr><td colspan="3" class="table-status">Não foi possível carregar a lista de doações no momento.</td></tr>';
-        updateDashboard(0);
+    const frag = document.createDocumentFragment();
+    list.forEach(d => {
+      const tr = document.createElement('tr');
+      const cells = [d.date, d.name, formatBRL(d.value)];
+      cells.forEach((text, i) => {
+        const td = document.createElement('td');
+        if (i === 2) td.className = 'value-col';
+        td.textContent = text;
+        tr.appendChild(td);
       });
-    } catch (err){
-      console.error('Erro ao carregar dados da campanha:', err);
-      updateDashboard(0);
+      frag.appendChild(tr);
+    });
+    els.tbody.textContent = '';
+    els.tbody.appendChild(frag);
+  }
+
+  function renderCampaign(data) {
+    const list = Object.values(data || {})
+      .filter(d => d && typeof d.name === 'string' && d.name.trim() && typeof d.value === 'number' && isFinite(d.value) && d.value > 0)
+      .map(d => {
+        const ts = Number(d.timestamp) || 0;
+        return {
+          name: d.name.trim(),
+          value: d.value,
+          ts,
+          date: d.date || (ts ? new Date(ts).toLocaleDateString('pt-BR') : '')
+        };
+      })
+      .sort((a, b) => b.ts - a.ts);
+
+    const total = round2(list.reduce((sum, d) => sum + d.value, 0));
+    loadedOnce = true;
+    renderDonors(list);
+    updateDashboard(total);
+  }
+
+  function showLoadError() {
+    if (loadedOnce) return; // em atualizações periódicas, mantém os últimos dados bons
+    setStatus('Não foi possível carregar os dados agora.', true);
+    els.raised.textContent = '—';
+    els.remaining.textContent = '—';
+    els.percent.textContent = '—';
+    els.fill.style.width = '0%';
+    emptyRow('Não foi possível carregar a lista de padrinhos no momento.');
+  }
+
+  function loadCampaignData() {
+    if (!db) { showLoadError(); return; }
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(showLoadError, CONFIG.LOAD_TIMEOUT_MS);
+    db.ref('donations').orderByChild('timestamp').once('value')
+      .then(snapshot => {
+        clearTimeout(loadTimer);
+        renderCampaign(snapshot.val());
+      })
+      .catch(err => {
+        clearTimeout(loadTimer);
+        console.error('Erro ao carregar dados:', err);
+        showLoadError();
+      });
+  }
+
+  /* =========================================================
+     REGISTRO DA CONTRIBUIÇÃO (só ao tocar em "Concluir pagamento")
+  ========================================================== */
+  async function ensureAuth() {
+    if (!auth) throw new Error('auth-unavailable');
+    if (auth.currentUser) return;
+    await withTimeout(authPromise, CONFIG.AUTH_TIMEOUT_MS).catch(() => null);
+    if (!auth.currentUser) await withTimeout(auth.signInAnonymously(), CONFIG.AUTH_TIMEOUT_MS);
+  }
+
+  async function registerDonation(pending) {
+    await ensureAuth();
+    const data = {
+      name: pending.name,
+      value: pending.value,
+      date: new Date().toLocaleDateString('pt-BR'),
+      timestamp: Date.now()
+    };
+    try {
+      await withTimeout(pending.ref.set(data), CONFIG.WRITE_TIMEOUT_MS);
+    } catch (err) {
+      // A resposta pode ter demorado, mas o registro pode já existir (mesma chave): confere antes de falhar
+      const snap = await withTimeout(pending.ref.once('value'), 5000).catch(() => null);
+      if (!(snap && snap.exists())) throw err;
     }
+  }
+
+  /* =========================================================
+     MODAL TRAVADO
+     Só é "fechado" ao tocar em "Concluir pagamento", que leva ao 7me.
+  ========================================================== */
+  const modal = $('donation-modal');
+  const goBtn = $('modal-go');
+  const editBtn = $('modal-edit');
+  const modalError = $('modal-error');
+  const BACKGROUND = ['header.hero', 'main', 'footer', '#sticky-cta'];
+  let modalOpen = false;
+  let leaving = false;
+  let busy = false;
+  let pending = null;
+  let lastFocus = null;
+
+  function setBackgroundInert(on) {
+    BACKGROUND.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      if (on) { el.setAttribute('inert', ''); el.setAttribute('aria-hidden', 'true'); }
+      else { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }
+    });
+  }
+
+  function resetGoButton() {
+    editBtn.disabled = false;
+    goBtn.disabled = false;
+    goBtn.textContent = 'Concluir pagamento';
+    goBtn.removeAttribute('aria-busy');
+  }
+
+  function openModal(donation) {
+    pending = donation;
+    leaving = false;
+    busy = false;
+    lastFocus = document.activeElement;
+    $('modal-donor-name').textContent = donation.name;
+    $('modal-amount-value').textContent = formatBRL(donation.value);
+    modalError.hidden = true;
+    resetGoButton();
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+    setBackgroundInert(true);
+    modalOpen = true;
+    goBtn.focus();
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    document.body.classList.remove('modal-open');
+    setBackgroundInert(false);
+    modalOpen = false;
+    pending = null;
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) { /* ignora */ } }
+  }
+
+  // Impede Esc e fuga do foco: Tab alterna só entre os botões do modal
+  document.addEventListener('keydown', e => {
+    if (!modalOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return; }
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const items = [goBtn, editBtn].filter(b => !b.disabled);
+    if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    const next = i === -1 ? 0 : (i + (e.shiftKey ? items.length - 1 : 1)) % items.length;
+    items[next].focus();
+  }, true);
+
+  // Avisa se tentarem recarregar/fechar a aba antes de concluir o pagamento
+  window.addEventListener('beforeunload', e => {
+    if (modalOpen && !leaving) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  goBtn.addEventListener('click', async () => {
+    if (!pending || busy) return;
+    busy = true;
+    goBtn.disabled = true;
+    editBtn.disabled = true;
+    goBtn.textContent = 'Registrando…';
+    goBtn.setAttribute('aria-busy', 'true');
+    modalError.hidden = true;
+    try {
+      await registerDonation(pending);
+      leaving = true;
+      goBtn.textContent = 'Abrindo o 7me…';
+      window.location.assign(CONFIG.REDIRECT_URL);
+      // Segurança: se o navegador não abriu o 7me, permite tentar de novo (o registro é idempotente)
+      setTimeout(() => {
+        if (modalOpen) { busy = false; resetGoButton(); goBtn.textContent = 'Abrir o 7me novamente'; }
+      }, 6000);
+    } catch (err) {
+      console.error('Erro ao registrar contribuição:', err);
+      modalError.textContent = 'Não conseguimos registrar sua contribuição agora. Verifique sua conexão e tente novamente.';
+      modalError.hidden = false;
+      busy = false;
+      resetGoButton();
+      goBtn.focus();
+    }
+  });
+
+  // "Editar informações": volta ao formulário com nome e valor preenchidos (nada foi gravado ainda)
+  editBtn.addEventListener('click', () => {
+    if (busy || leaving) return;
+    closeModal();
+    nameInput.focus();
+  });
+
+  /* =========================================================
+     FORMULÁRIO
+  ========================================================== */
+  const form = $('donation-form');
+  const nameInput = $('donor-name');
+  const valueInput = $('donor-value');
+  const formError = $('form-error');
+
+  function setFieldError(input, errorEl, msg) {
+    errorEl.textContent = msg || '';
+    input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+  }
+
+  function clearErrors() {
+    setFieldError(nameInput, $('name-error'), '');
+    setFieldError(valueInput, $('value-error'), '');
+    formError.textContent = '';
+  }
+
+  // Filtra os caracteres enquanto digita/cola, preservando a posição do cursor
+  function liveFilter(input, filterFn) {
+    input.addEventListener('input', e => {
+      if (e.isComposing) return;
+      const before = input.value;
+      const pos = input.selectionStart;
+      const after = filterFn(before);
+      if (after !== before) {
+        const left = filterFn(before.slice(0, pos));
+        input.value = after;
+        try { input.setSelectionRange(left.length, left.length); } catch (err) { /* ignora */ }
+      }
+    });
+    input.addEventListener('compositionend', () => { input.value = filterFn(input.value); });
+  }
+
+  function setupForm() {
+    if (!form) return;
+    liveFilter(nameInput, sanitizeName);
+    liveFilter(valueInput, sanitizeValue);
+    nameInput.addEventListener('input', () => setFieldError(nameInput, $('name-error'), ''));
+    valueInput.addEventListener('input', () => { setFieldError(valueInput, $('value-error'), ''); syncChips(); });
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      clearErrors();
+      const nameRes = validateName(nameInput.value);
+      const valueRes = validateAmount(valueInput.value);
+      if (!nameRes.ok) setFieldError(nameInput, $('name-error'), nameRes.msg);
+      if (!valueRes.ok) setFieldError(valueInput, $('value-error'), valueRes.msg);
+      if (!nameRes.ok) { nameInput.focus(); return; }
+      if (!valueRes.ok) { valueInput.focus(); return; }
+
+      if (!db) {
+        formError.textContent = 'O registro de contribuições está indisponível no momento. Tente novamente em instantes.';
+        return;
+      }
+      let ref;
+      try { ref = db.ref('donations').push(); }
+      catch (err) {
+        console.error(err);
+        formError.textContent = 'Algo deu errado. Tente novamente.';
+        return;
+      }
+      openModal({ name: nameRes.name, value: valueRes.value, ref });
+    });
   }
 
   /* ---------- valores sugeridos ---------- */
-  function setupChips(){
-    const input = document.getElementById('donor-value');
-    const chips = document.querySelectorAll('.chip');
-    if (!input || !chips.length) return;
-    function sync(){
-      const cur = parseCurrencyValue(input.value);
-      chips.forEach(ch => ch.setAttribute('aria-pressed', String(Number(ch.dataset.value) === cur)));
-    }
+  const chips = document.querySelectorAll('.chip');
+  function syncChips() {
+    const cur = parseAmount(valueInput ? valueInput.value : '');
+    chips.forEach(ch => ch.setAttribute('aria-pressed', String(Number(ch.dataset.value) === cur)));
+  }
+  function setupChips() {
+    if (!valueInput || !chips.length) return;
     chips.forEach(ch => ch.addEventListener('click', () => {
-      input.value = Number(ch.dataset.value).toFixed(2).replace('.', ',');
-      sync();
+      valueInput.value = Number(ch.dataset.value).toFixed(2).replace('.', ',');
+      setFieldError(valueInput, $('value-error'), '');
+      syncChips();
     }));
-    input.addEventListener('input', sync);
   }
 
   /* ---------- botão fixo "Quero contribuir" (celular) ---------- */
-  function setupStickyCta(){
-    const cta = document.getElementById('sticky-cta');
+  function setupStickyCta() {
+    const cta = $('sticky-cta');
     const hero = document.querySelector('.hero');
-    const pix = document.getElementById('pix');
+    const pix = $('pix');
     const footer = document.querySelector('footer');
     if (!cta || !hero || !pix || !footer || !('IntersectionObserver' in window)) return;
     const visible = new Set();
@@ -328,31 +470,33 @@
     update();
   }
 
-  function setupCopyButton(){
-    if (!els.copyBtn || !els.pixKey) return;
-    els.pixKey.textContent = CONFIG.PIX_KEY;
-    els.copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(CONFIG.PIX_KEY);
-        els.copyBtn.textContent = 'Copiado!';
-        els.copyBtn.setAttribute('data-copied', 'true');
-        setTimeout(() => {
-          els.copyBtn.textContent = 'Copiar';
-          els.copyBtn.removeAttribute('data-copied');
-        }, 2000);
-      } catch (e){
-        els.copyBtn.textContent = 'Selecione e copie';
-      }
-    });
-  }
+  /* ---------- voltar do 7me (página restaurada do cache) ---------- */
+  window.addEventListener('pageshow', e => {
+    if (!e.persisted) return;
+    leaving = false;
+    if (modalOpen) closeModal();
+    if (form) form.reset();
+    clearErrors();
+    syncChips();
+    loadCampaignData();
+  });
 
-  document.addEventListener('DOMContentLoaded', () => {
-    setupCopyButton();
-    setupDonationForm();
+  /* =========================================================
+     INICIALIZAÇÃO
+  ========================================================== */
+  function init() {
+    setupForm();
     setupChips();
     setupStickyCta();
+    if (els.retry) els.retry.addEventListener('click', () => {
+      setStatus('Carregando dados da campanha…', false);
+      loadCampaignData();
+    });
     loadCampaignData();
     // Atualiza os dados a cada 5 minutos, sem precisar recarregar a página
-    setInterval(loadCampaignData, 5 * 60 * 1000);
-  });
+    setInterval(loadCampaignData, CONFIG.REFRESH_MS);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
