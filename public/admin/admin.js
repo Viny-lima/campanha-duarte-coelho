@@ -378,12 +378,38 @@
     try {
       await auth.signInWithPopup(provider);
     } catch (err) {
-      const code = err && err.code;
+      let code = err && err.code;
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-        try { await auth.signInWithRedirect(provider); return; } catch (e2) { /* cai na mensagem abaixo */ }
+        try { await auth.signInWithRedirect(provider); return; } catch (e2) { code = (e2 && e2.code) || code; err = e2 || err; }
       }
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') $('login-error').textContent = 'Login cancelado.';
-      else $('login-error').textContent = 'Não foi possível entrar agora. Tente novamente.';
+      console.error('Login Google falhou:', code, err && err.message);
+      $('login-error').textContent = loginErrorMessage(code);
+    }
+  }
+
+  // Mensagem clara para cada motivo de falha (o código do erro também vai para o console)
+  function loginErrorMessage(code) {
+    switch (code) {
+      case 'auth/popup-closed-by-user':
+      case 'auth/cancelled-popup-request':
+        return 'Login cancelado.';
+      case 'auth/operation-not-allowed':
+        return 'O login com Google ainda não está ativado neste projeto do Firebase. Ative em Authentication → Sign-in method → Google e tente de novo.';
+      case 'auth/unauthorized-domain':
+        return 'Este endereço não está autorizado no Firebase. Inclua o domínio em Authentication → Settings → Authorized domains.';
+      case 'auth/network-request-failed':
+        return 'Sem conexão com o Firebase. Verifique a internet e tente de novo.';
+      case 'auth/user-disabled':
+        return 'Esta conta foi desativada no Firebase.';
+      case 'auth/too-many-requests':
+        return 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.';
+      case 'auth/popup-blocked':
+      case 'auth/operation-not-supported-in-this-environment':
+        return 'O navegador bloqueou a janela de login. Permita pop-ups para este site ou abra o painel no Chrome/Safari.';
+      case 'auth/web-storage-unsupported':
+        return 'O navegador está bloqueando o armazenamento necessário para o login. Desative o modo privado ou libere os cookies deste site.';
+      default:
+        return 'Não foi possível entrar agora' + (code ? ' (' + code + ')' : '') + '. Tente novamente.';
     }
   }
 

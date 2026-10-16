@@ -2,7 +2,7 @@
 
 Site da campanha **"Rumo a Barretos"**, feito para o **Clube de Desbravadores Duarte Coelho**.
 
-**Versão 2.1.0** · **Site no ar: https://campanha-clube-duarte-coelho.web.app**
+**Versão 2.1.1** · **Site no ar: https://campanha-clube-duarte-coelho.web.app**
 
 ## Sobre o projeto
 
@@ -64,7 +64,9 @@ Página restrita para o clube corrigir a lista de padrinhos. Ela só abre pelo e
 
 **Onde fica a chave:** no arquivo `.admin-token` (ignorado pelo Git). O link completo aparece com `node scripts/admin-link.js`. O código do painel fica só em `public/admin/`; a rota secreta é criada na hora do deploy.
 
-**Antes do primeiro uso:** no console do Firebase, ative o login Google (Authentication → Sign-in method → Google).
+**Antes do primeiro uso:** no console do Firebase, ative o login Google (Authentication → Sign-in method → Google, informando um e-mail de suporte do projeto). Sem isso o login falha com a mensagem "O login com Google ainda não está ativado neste projeto do Firebase".
+
+**Se o login falhar:** a tela do painel informa o motivo (login Google desativado, domínio não autorizado, sem conexão, pop-up bloqueado, conta sem permissão etc.) e o código do erro aparece no console do navegador (`Login Google falhou: auth/...`).
 
 ## Tecnologias
 
