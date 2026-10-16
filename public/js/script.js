@@ -111,6 +111,7 @@
   let animationId = 0;
   let loadedOnce = false;
   let loadTimer = null;
+  let highlight = null; // { name, value, since } do padrinho recém-registrado
 
   function animateNumber(el, from, to, duration) {
     const id = ++animationId;
@@ -181,6 +182,7 @@
         td.textContent = text;
         tr.appendChild(td);
       });
+      if (d.isNew) tr.className = 'is-new';
       frag.appendChild(tr);
     });
     els.tbody.textContent = '';
@@ -200,6 +202,11 @@
         };
       })
       .sort((a, b) => b.ts - a.ts);
+
+    if (highlight) {
+      const mine = list.find(d => d.name === highlight.name && d.value === highlight.value && d.ts >= highlight.since - 60000);
+      if (mine) { mine.isNew = true; highlight = null; }
+    }
 
     const total = round2(list.reduce((sum, d) => sum + d.value, 0));
     loadedOnce = true;
@@ -267,6 +274,7 @@
   const modal = $('donation-modal');
   const goBtn = $('modal-go');
   const editBtn = $('modal-edit');
+  const doneMsg = $('done-msg');
   const modalError = $('modal-error');
   const BACKGROUND = ['header.hero', 'main', 'footer', '#sticky-cta'];
   let modalOpen = false;
@@ -274,6 +282,9 @@
   let busy = false;
   let pending = null;
   let lastFocus = null;
+  let handoff = false;     // 7me aberto nesta mesma aba (app/link): aguardando a volta do usuário
+  let wentHidden = false;  // a aba ficou em segundo plano (o app do 7me abriu)
+  let lastDonor = null;
 
   function setBackgroundInert(on) {
     BACKGROUND.forEach(sel => {
@@ -299,6 +310,7 @@
     $('modal-donor-name').textContent = donation.name;
     $('modal-amount-value').textContent = formatBRL(donation.value);
     modalError.hidden = true;
+    doneMsg.hidden = true;
     resetGoButton();
     modal.hidden = false;
     document.body.classList.add('modal-open');
@@ -334,6 +346,27 @@
     if (modalOpen && !leaving) { e.preventDefault(); e.returnValue = ''; }
   });
 
+  function showDone(d) {
+    $('done-title').textContent = 'Obrigado, ' + d.name + '!';
+    $('done-text').textContent = 'Seu nome já está na lista de padrinhos. Falta só concluir o pagamento de ' + formatBRL(d.value) + ' no 7me.';
+    $('done-link').href = CONFIG.REDIRECT_URL;
+    doneMsg.hidden = false;
+  }
+
+  // Encerra o fluxo na página: fecha o pop-up, limpa o formulário, avisa e atualiza a lista
+  function finishFlow(donor) {
+    leaving = false;
+    handoff = false;
+    wentHidden = false;
+    busy = false;
+    if (modalOpen) closeModal();
+    form.reset();
+    clearErrors();
+    syncChips();
+    showDone(donor);
+    loadCampaignData();
+  }
+
   goBtn.addEventListener('click', async () => {
     if (!pending || busy) return;
     busy = true;
@@ -342,14 +375,30 @@
     goBtn.textContent = 'Registrando…';
     goBtn.setAttribute('aria-busy', 'true');
     modalError.hidden = true;
+    const donor = { name: pending.name, value: pending.value };
     try {
       await registerDonation(pending);
+      lastDonor = donor;
+      highlight = { name: donor.name, value: donor.value, since: Date.now() };
+
+      // 1) Abre o 7me em outra aba (ou no app) e a página atual segue viva, já mostrando o padrinho
+      let opened = null;
+      try { opened = window.open(CONFIG.REDIRECT_URL, '_blank'); } catch (e) { opened = null; }
+      if (opened) {
+        try { opened.opener = null; } catch (e) { /* ignora */ }
+        finishFlow(donor);
+        return;
+      }
+
+      // 2) Nova aba bloqueada: segue nesta aba. Ao voltar (app do 7me), o pop-up fecha sozinho.
       leaving = true;
+      handoff = true;
+      wentHidden = false;
       goBtn.textContent = 'Abrindo o 7me…';
       window.location.assign(CONFIG.REDIRECT_URL);
-      // Segurança: se o navegador não abriu o 7me, permite tentar de novo (o registro é idempotente)
+      // Segurança: se nada aconteceu em 6s, permite tentar de novo (o registro é idempotente)
       setTimeout(() => {
-        if (modalOpen) { busy = false; resetGoButton(); goBtn.textContent = 'Abrir o 7me novamente'; }
+        if (modalOpen && handoff && !wentHidden) { busy = false; resetGoButton(); goBtn.textContent = 'Abrir o 7me novamente'; }
       }, 6000);
     } catch (err) {
       console.error('Erro ao registrar contribuição:', err);
@@ -359,6 +408,13 @@
       resetGoButton();
       goBtn.focus();
     }
+  });
+
+  // Voltou do app/aba do 7me: fecha o pop-up e mostra o padrinho na lista
+  document.addEventListener('visibilitychange', () => {
+    if (!handoff) return;
+    if (document.visibilityState === 'hidden') wentHidden = true;
+    else if (wentHidden && lastDonor) finishFlow(lastDonor);
   });
 
   // "Editar informações": volta ao formulário com nome e valor preenchidos (nada foi gravado ainda)
@@ -473,6 +529,7 @@
   /* ---------- voltar do 7me (página restaurada do cache) ---------- */
   window.addEventListener('pageshow', e => {
     if (!e.persisted) return;
+    if (handoff && lastDonor) { finishFlow(lastDonor); return; }
     leaving = false;
     if (modalOpen) closeModal();
     if (form) form.reset();

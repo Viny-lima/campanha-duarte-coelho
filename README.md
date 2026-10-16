@@ -2,7 +2,7 @@
 
 Site da campanha **"Rumo a Barretos"**, feito para o **Clube de Desbravadores Duarte Coelho**.
 
-**Versão 2.0.0** · **Site no ar: https://campanha-clube-duarte-coelho.web.app**
+**Versão 2.0.1** · **Site no ar: https://campanha-clube-duarte-coelho.web.app**
 
 ## Sobre o projeto
 
@@ -28,7 +28,8 @@ O objetivo é levar os desbravadores de 10 a 15 anos ao Campori da Divisão Sul-
 1. A pessoa informa **nome** e **valor** (ou escolhe um valor sugerido).
 2. Ao tocar em **Contribuir**, abre um pop-up para **conferir os dados**. Nada é gravado ainda.
 3. Se algo estiver errado, **Editar informações** volta ao formulário com os dados preenchidos.
-4. Ao tocar em **Concluir pagamento**, o nome entra na **lista de padrinhos** e a pessoa segue para o **7me** (plataforma de doações da Igreja Adventista, desenvolvida pela IATec) para finalizar o pagamento.
+4. Ao tocar em **Concluir pagamento**, o nome entra na **lista de padrinhos** e o **7me** (plataforma de doações da Igreja Adventista, desenvolvida pela IATec) abre em **outra aba** ou no aplicativo, para finalizar o pagamento.
+5. A página atual já fecha o pop-up, mostra o aviso "Obrigado, [nome]!" e exibe o nome na lista. Se o navegador bloquear a nova aba, o 7me abre nesta mesma aba e, **ao voltar**, o pop-up fecha sozinho e a lista já está atualizada.
 
 O pop-up é travado de propósito: Esc e clique fora não fecham. As únicas saídas são **Concluir pagamento** e **Editar informações**.
 

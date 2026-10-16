@@ -161,6 +161,14 @@
       </div>
 
       <div class="donation-card">
+        <div id="done-msg" class="done-msg" role="status" hidden>
+          <strong id="done-title"></strong>
+          <span id="done-text"></span>
+          <span class="done-links">
+            <a id="done-link" href="#" target="_blank" rel="noopener">Abrir o 7me novamente</a> ·
+            <a href="#doadores">Ver a lista</a>
+          </span>
+        </div>
         <form id="donation-form" class="donation-form" novalidate onsubmit="return false;">
           <h3 class="form-title">Faça sua contribuição</h3>
 
@@ -242,7 +250,9 @@
   </div>
 </footer>
 
-<a class="sticky-cta" id="sticky-cta" href="#pix" hidden>Quero contribuir</a>
+<nav aria-label="Atalho para contribuir">
+  <a class="sticky-cta" id="sticky-cta" href="#pix" hidden>Quero contribuir</a>
+</nav>
 
 <!-- ===================== MODAL: CONFIRMAR E CONCLUIR PAGAMENTO =====================
      Travado de propósito (Esc e clique fora não fecham). Só tem duas saídas:

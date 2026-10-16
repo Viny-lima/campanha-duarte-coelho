@@ -718,3 +718,16 @@
     .donation-modal-content .modal-amount strong{ font-size:1.6rem; }
     .modal-hint{ font-size:0.82rem !important; margin-bottom:10px !important; }
   }
+
+  /* ===================== Volta do 7me: aviso de sucesso e destaque do novo padrinho ===================== */
+  .done-msg{
+    margin:0 0 18px; padding:14px 16px;
+    border-radius:var(--radius-m); background:#EAF3E4; border:1px solid #BFE0C2;
+    color:#1D4D2A; font-size:0.95rem; line-height:1.55;
+  }
+  .done-msg[hidden]{ display:none; }
+  .done-msg strong{ display:block; font-size:1.05rem; color:#14532D; margin-bottom:2px; }
+  .done-links{ display:block; margin-top:6px; }
+  .done-msg a{ color:#14532D; font-weight:600; text-underline-offset:3px; }
+  tbody tr.is-new td{ animation:newrow 5s ease-out 1; }
+  @keyframes newrow{ from{ background:rgba(227,167,46,0.5); } to{ background:transparent; } }
