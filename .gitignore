@@ -4,3 +4,7 @@ node_modules/
 .firebase/
 .DS_Store
 Thumbs.db
+
+# Painel administrativo: a chave secreta e a configuração gerada com ela nunca vão para o Git
+.admin-token
+firebase.deploy.json

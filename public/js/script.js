@@ -4,9 +4,6 @@
   const CONFIG = {
     GOAL: 55000.00,
     REDIRECT_URL: "https://7me.app/71/p19w9a",
-    MIN_VALUE: 1,
-    MAX_VALUE: 10000,
-    NAME_MAX: 80,
     REFRESH_MS: 5 * 60 * 1000,
     LOAD_TIMEOUT_MS: 10000,
     AUTH_TIMEOUT_MS: 8000,
@@ -51,52 +48,9 @@
   }
 
   /* =========================================================
-     VALIDAÇÃO: NOME E VALOR
+     VALIDAÇÃO: NOME E VALOR (compartilhada com o painel administrativo)
   ========================================================== */
-  // Nome: só letras (com acentos), espaço, apóstrofo, ponto e hífen
-  const NAME_FORBIDDEN = /[^\p{L}\p{M}'’.\- ]/gu;
-  const NAME_FORMAT = /^\p{L}[\p{L}\p{M}'’.\- ]*$/u;
-
-  function sanitizeName(raw) {
-    return raw.replace(NAME_FORBIDDEN, '').replace(/ {2,}/g, ' ').replace(/^[ .\-'’]+/, '');
-  }
-
-  function validateName(raw) {
-    const name = String(raw || '').replace(/\s+/g, ' ').trim();
-    if (!name) return { ok: false, msg: 'Informe seu nome.' };
-    const letters = (name.match(/\p{L}/gu) || []).length;
-    if (!NAME_FORMAT.test(name) || letters < 2) return { ok: false, msg: 'Digite seu nome usando apenas letras (mínimo 2).' };
-    if (name.length > CONFIG.NAME_MAX) return { ok: false, msg: 'O nome pode ter no máximo ' + CONFIG.NAME_MAX + ' caracteres.' };
-    return { ok: true, name };
-  }
-
-  // Valor: só dígitos, ponto e vírgula
-  const sanitizeValue = raw => raw.replace(/[^\d.,]/g, '');
-
-  /**
-   * Formatos aceitos (pt-BR):  50 · 50,5 · 50,50 · 50.50 · 1.250 · 1.250,50
-   * "1.250" é milhar (R$ 1.250); "1.25" é decimal (R$ 1,25). Qualquer outro formato é inválido.
-   */
-  function parseAmount(raw) {
-    const s = String(raw || '').trim();
-    let m;
-    if (/^\d+$/.test(s)) return Number(s);
-    if ((m = s.match(/^(\d{1,3}(?:\.\d{3})+)(?:,(\d{1,2}))?$/))) return Number(m[1].replace(/\./g, '') + '.' + (m[2] || '0'));
-    if ((m = s.match(/^(\d+),(\d{1,2})$/))) return Number(m[1] + '.' + m[2]);
-    if ((m = s.match(/^(\d+)\.(\d{1,2})$/))) return Number(m[1] + '.' + m[2]);
-    return NaN;
-  }
-
-  function validateAmount(raw) {
-    const s = String(raw || '').trim();
-    if (!s) return { ok: false, msg: 'Informe o valor.' };
-    const n = parseAmount(s);
-    if (isNaN(n)) return { ok: false, msg: 'Valor inválido. Use o formato 50 ou 50,00.' };
-    const value = round2(n);
-    if (value < CONFIG.MIN_VALUE) return { ok: false, msg: 'O valor mínimo é ' + formatBRL(CONFIG.MIN_VALUE) + '.' };
-    if (value > CONFIG.MAX_VALUE) return { ok: false, msg: 'O valor máximo é ' + formatBRL(CONFIG.MAX_VALUE) + '.' };
-    return { ok: true, value };
-  }
+  const { sanitizeName, validateName, sanitizeValue, parseAmount, validateAmount, validateRecord, formatDateBR } = window.CampanhaValidation;
 
   /* =========================================================
      PAINEL DE PROGRESSO
@@ -252,12 +206,10 @@
 
   async function registerDonation(pending) {
     await ensureAuth();
-    const data = {
-      name: pending.name,
-      value: pending.value,
-      date: new Date().toLocaleDateString('pt-BR'),
-      timestamp: Date.now()
-    };
+    const now = new Date();
+    const data = { name: pending.name, value: pending.value, date: formatDateBR(now), timestamp: now.getTime() };
+    const check = validateRecord(data);
+    if (!check.ok) throw new Error('registro-inconsistente: ' + check.msg);
     try {
       await withTimeout(pending.ref.set(data), CONFIG.WRITE_TIMEOUT_MS);
     } catch (err) {

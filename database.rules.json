@@ -2,17 +2,64 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "admins": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email.toLowerCase() === 'cdduartecoelho26@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)",
+      ".write": false
+    },
+    "adminLog": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email.toLowerCase() === 'cdduartecoelho26@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)",
+      "$logId": {
+        ".write": "(auth != null && auth.token.email_verified === true && (auth.token.email.toLowerCase() === 'cdduartecoelho26@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['action','donationId','by','at'])",
+        "action": {
+          ".validate": "newData.isString() && (newData.val() === 'create' || newData.val() === 'edit' || newData.val() === 'delete')"
+        },
+        "donationId": {
+          ".validate": "newData.isString() && newData.val().length <= 64"
+        },
+        "by": {
+          ".validate": "newData.isString() && newData.val() === auth.token.email"
+        },
+        "at": {
+          ".validate": "newData.isNumber() && newData.val() <= now + 60000"
+        },
+        "before": {
+          ".validate": true
+        },
+        "after": {
+          ".validate": true
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
     "donations": {
       ".read": true,
-      ".indexOn": ["timestamp"],
+      ".indexOn": [
+        "timestamp"
+      ],
       "$id": {
-        ".write": "auth != null && !data.exists() && newData.exists()",
+        ".write": "(auth != null && !data.exists() && newData.exists()) || (auth != null && auth.token.email_verified === true && (auth.token.email.toLowerCase() === 'cdduartecoelho26@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
         ".validate": "newData.hasChildren(['name','value','date','timestamp'])",
-        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
-        "value": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000" },
-        "date": { ".validate": "newData.isString() && newData.val().length <= 10" },
-        "timestamp": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
-        "$other": { ".validate": false }
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80 && !newData.val().matches(/[<>&\"{}\\[\\]\\/\\x5c]/)"
+        },
+        "value": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 10000"
+        },
+        "date": {
+          ".validate": "newData.isString() && newData.val().matches(/^[0-9][0-9]\\/[0-9][0-9]\\/20[2-9][0-9]$/)"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() > 1577836800000 && newData.val() <= now + 60000"
+        },
+        "source": {
+          ".validate": "newData.val() === 'manual' && (auth != null && auth.token.email_verified === true && (auth.token.email.toLowerCase() === 'cdduartecoelho26@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }

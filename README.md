@@ -2,7 +2,7 @@
 
 Site da campanha **"Rumo a Barretos"**, feito para o **Clube de Desbravadores Duarte Coelho**.
 
-**Versão 2.0.1** · **Site no ar: https://campanha-clube-duarte-coelho.web.app**
+**Versão 2.1.0** · **Site no ar: https://campanha-clube-duarte-coelho.web.app**
 
 ## Sobre o projeto
 
@@ -43,6 +43,29 @@ O pop-up é travado de propósito: Esc e clique fora não fecham. As únicas sa�
 - **Compartilhamento:** prévia com imagem e descrição ao compartilhar o link no WhatsApp e nas redes.
 - **Seguro:** regras do banco que só permitem criar contribuições válidas (sem editar nem apagar) e cabeçalhos de segurança no Hosting.
 
+## Painel administrativo
+
+Página restrita para o clube corrigir a lista de padrinhos. Ela só abre pelo endereço com a **chave secreta** (`/admin/<chave>/`) e exige **login com uma conta Google autorizada**. A chave sozinha não é a proteção: quem decide quem pode editar ou apagar é o banco de dados (veja as regras em `database.rules.json`).
+
+<p>
+  <img src="docs/screenshots/admin-painel.jpg" alt="Painel administrativo no computador" width="58%">
+  <img src="docs/screenshots/admin-celular.jpg" alt="Painel administrativo no celular" width="19%">
+  <img src="docs/screenshots/admin-excluir.jpg" alt="Confirmação de exclusão no celular" width="19%">
+</p>
+
+*Capturas com dados fictícios.*
+
+- **Tabela igual à do site**, com um botão de **editar** e um de **excluir** em cada linha, e **Nova contribuição** para registros manuais (marcados com a etiqueta "manual" só no painel).
+- **Exclusão uma por vez**, com confirmação mostrando o registro. Não existe seleção múltipla.
+- **Registros inconsistentes** (sem nome, valor inválido) aparecem destacados e só podem ser salvos depois de corrigidos.
+- **Mesmas validações do site** (`public/js/validation.js`), mais uma validação final do registro inteiro antes de gravar. As regras do banco repetem os limites como segunda barreira.
+- **Histórico**: toda criação, edição e exclusão grava no banco quem fez, quando e o que mudou (`adminLog`, só de acrescentar).
+- **Administradores:** a conta do clube é fixa nas regras. Para liberar outra, crie no Realtime Database o nó `admins/<e-mail com vírgulas no lugar dos pontos>` com o valor `true` (ex.: `admins/pessoa@gmail,com`). A conta precisa ter o e-mail verificado.
+
+**Onde fica a chave:** no arquivo `.admin-token` (ignorado pelo Git). O link completo aparece com `node scripts/admin-link.js`. O código do painel fica só em `public/admin/`; a rota secreta é criada na hora do deploy.
+
+**Antes do primeiro uso:** no console do Firebase, ative o login Google (Authentication → Sign-in method → Google).
+
 ## Tecnologias
 
 - HTML, CSS e JavaScript puro
@@ -58,8 +81,11 @@ O pop-up é travado de propósito: Esc e clique fora não fecham. As únicas sa�
 │   ├── css/style.css        # Estilos do site
 │   ├── js/
 │   │   ├── firebase-config.js  # Config pública do Firebase (único arquivo a trocar ao migrar de projeto)
-│   │   └── script.js        # Lógica da página, validações e integração com o Firebase
+│   │   ├── validation.js    # Validação de nome, valor e registro (usada pelo site e pelo painel)
+│   │   └── script.js        # Lógica da página e integração com o Firebase
+│   ├── admin/               # Painel administrativo (index.html, admin.js, admin.css)
 │   └── assets/images/       # Foto da turma, brasão, ícone e imagem de prévia
+├── scripts/                 # deploy.js, build-deploy-config.js e admin-link.js
 ├── docs/screenshots/        # Imagens usadas neste README
 ├── database.rules.json      # Regras de segurança do Realtime Database
 ├── firebase.json            # Configuração de deploy e cabeçalhos de segurança
@@ -82,8 +108,10 @@ npx serve public
 ```bash
 npm i -g firebase-tools
 firebase login
-firebase deploy        # publica o site e as regras do banco
+node scripts/deploy.js --project campanha-clube-duarte-coelho   # publica o site, o painel e as regras do banco
 ```
+
+O script gera `firebase.deploy.json` (com a rota secreta do painel, fora do Git) e chama o `firebase deploy`. Um `firebase deploy` direto publica o site normalmente, mas **sem** a rota do painel.
 
 ## Contribuições
 

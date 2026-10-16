@@ -70,6 +70,40 @@
             "value": "public, max-age=300, must-revalidate"
           }
         ]
+      },
+      {
+        "source": "/admin/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow, noarchive"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/admin",
+        "destination": "/",
+        "type": 302
+      },
+      {
+        "source": "/admin/",
+        "destination": "/",
+        "type": 302
+      },
+      {
+        "source": "/admin/index.html",
+        "destination": "/",
+        "type": 302
       }
     ]
   }
