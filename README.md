@@ -2,7 +2,7 @@
 
 Site da campanha **"Rumo a Barretos"**, feito para o **Clube de Desbravadores Duarte Coelho**.
 
-**Versão 2.1.1** · **Site no ar: https://campanha-clube-duarte-coelho.web.app**
+**Versão 2.1.2** · **Site no ar: https://campanha-clube-duarte-coelho.web.app**
 
 ## Sobre o projeto
 
@@ -114,6 +114,12 @@ node scripts/deploy.js --project campanha-clube-duarte-coelho   # publica o site
 ```
 
 O script gera `firebase.deploy.json` (com a rota secreta do painel, fora do Git) e chama o `firebase deploy`. Um `firebase deploy` direto publica o site normalmente, mas **sem** a rota do painel.
+
+## Testes das regras do banco
+
+As regras de segurança (`database.rules.json`) têm uma bateria de testes que roda no **emulador do Firebase**, sem tocar na produção: `node scripts/test-rules.js`. Ela confere, por exemplo, que um visitante consegue criar uma contribuição válida e não consegue editar nem apagar, e que só o administrador (e-mail verificado) altera a lista. Requer Java 17+ e o `firebase-tools`.
+
+**Rode sempre antes de publicar mudanças nas regras.** O motor de regras do Realtime Database tem uma sintaxe de expressões regulares própria (por exemplo, trata `\x5c` como os caracteres `x`, `5` e `c`, e não aceita `\\` dentro de uma classe `[...]`), e só o emulador mostra esses erros: o `firebase deploy` valida apenas a sintaxe geral.
 
 ## Contribuições
 

@@ -43,7 +43,7 @@
         ".write": "(auth != null && !data.exists() && newData.exists()) || (auth != null && auth.token.email_verified === true && (auth.token.email.toLowerCase() === 'cdduartecoelho26@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
         ".validate": "newData.hasChildren(['name','value','date','timestamp'])",
         "name": {
-          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80 && !newData.val().matches(/[<>&\"{}\\[\\]\\/\\x5c]/)"
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80 && !newData.val().matches(/[<>&\"{}\\[\\]\\/]/) && !newData.val().matches(/\\\\/)"
         },
         "value": {
           ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 10000"
